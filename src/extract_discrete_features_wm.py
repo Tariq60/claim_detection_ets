@@ -1,4 +1,4 @@
-''' August 1st, 2020
+''' August 28th, 2020
     Author: Tariq Alhindi
 
     Feature Extraction script for the writting mentor data
@@ -15,7 +15,8 @@ import json
 import spacy
 import pandas as pd
 import glob
-from sys import argv
+import argparse
+import timeit
 
 from utils.read_file import read_wm_essays
 
@@ -73,64 +74,79 @@ class FeatureExtractorWM:
                     assert token == spacy_token.string.strip()
                     file.write('{{"y": {}, "x": {}, "id": {}}}\n'.format(self.label_dict[l], json.dumps(f), token_id))
                     token_id +=1
-                    print(token, token_id)
+                    # print(token, token_id)
             
 
 def main():
 
+    parser = argparse.ArgumentParser(description='Feature Extraction for WM data')
+    parser.add_argument("--data_dir",
+                        default=None,
+                        type=str,
+                        required=True,
+                        help="The input data dir. Should contain the four column .tsv files with header 'sentence_id    token_id    token   label' in the first line.")
+    parser.add_argument("--extract_structural",
+                        default=True,
+                        action='store_true',
+                        help="Extracting structural featutres when set to True.")
+    parser.add_argument("--extract_syntactic",
+                        default=True,
+                        action='store_true',
+                        help="Extracting syntactic featutres when set to True.")
+    parser.add_argument("--extract_lexsyn",
+                        default=True,
+                        action='store_true',
+                        help="Extracting lexico-syntactic featutres when set to True.")
 
-    if len(sys.argv) < 1:
-        print('Missing data directory. Please run the script as the following: \
-               python extract_features_wm.py <data_dir>')
-        sys.exit()
-    elif len(sys.argv) > 1:
-        print('Too many arguments. Please run the script as the following: \
-               python extract_features_wm.py <data_dir>')
-        sys.exit()
-    else:
-        data_dir = sys.argv[1]
-    
+    args = parser.parse_args()
+    essays_sent_token_label, tokens, labels, essay_str, essay_str_sent = read_wm_essays(args.data_dir)
 
-    # data_dir = '/Users/talhindi/Documents/data_wm/arg_clean_45_1/*.tsv'
-    essays_sent_token_label, tokens, labels, essay_str, essay_str_sent = read_wm_essays(data_dir)
-
+    print('now tokenizing essays using spacy...')
     # tokenization using spacy
     nlp = spacy.load('en_core_web_sm')
 
+    start = timeit.default_timer()
     essay_spacy = []
     for essay in essay_str:
         essay_spacy.append(nlp(essay))
+    stop = timeit.default_timer()
 
+    print('tokenization took {} for {} essays'.format(stop-start, len(essay_spacy)))
 
     # creating folders for features of train and test data
-    if not os.path.exists(os.path.join(data_dir, '/features/')):
-        os.mkdir(os.path.join(data_dir, '/features/'))
+    if not os.path.exists(os.path.join(args.data_dir, 'features/')):
+        os.makedirs(os.path.join(args.data_dir, 'features/'))
 
-    print('Features will be exported to: ',os.path.join(data_dir, '/features/'))
+    print('Features will be exported to: ',os.path.join(args.data_dir, 'features/'))
 
     # instantiating an object of the FeatureExtractorWM class and passing the datasets
-    extractor = FeatureExtractorWM(essay_spacy, tokens, labels, open(os.path.join(data_dir, '/features/'))
+    extractor = FeatureExtractorWM(essay_spacy, tokens, labels, os.path.join(args.data_dir, 'features/'))
 
+    start = timeit.default_timer()
     #  extract structural features
-    extractor.extract_features(get_positions, 'structural_position_test.jsonlines')
-    extractor.extract_features(get_punc_features, 'structural_punc.jsonlines')
-    extractor.extract_features(tok_sent_pos, 'structural_position_sent.jsonlines')
+    if args.extract_structural:
+        extractor.extract_features(get_positions, 'structural_position_test.jsonlines')
+        extractor.extract_features(get_punc_features, 'structural_punc.jsonlines')
+        extractor.extract_features(tok_sent_pos, 'structural_position_sent.jsonlines')
 
 
-    # #  extract syntactic features
-    extractor.extract_features(get_pos, 'syntactic_POS.jsonlines')
-    extractor.extract_features(get_lca_features_doc, 'syntactic_LCA.jsonlines')
-    extractor.extract_features(get_lca_features_doc_avg, 'syntactic_LCA_avg.jsonlines')
-    extractor.extract_features(get_lca_features_doc_bin, 'syntactic_LCA_bin.jsonlines')
-    extractor.extract_features(get_lca_types_doc, 'syntactic_LCA_type.jsonlines')
+    #  extract syntactic features
+    if args.extract_syntactic:
+        extractor.extract_features(get_pos, 'syntactic_POS.jsonlines')
+        extractor.extract_features(get_lca_features_doc, 'syntactic_LCA.jsonlines')
+        extractor.extract_features(get_lca_features_doc_avg, 'syntactic_LCA_avg.jsonlines')
+        extractor.extract_features(get_lca_features_doc_bin, 'syntactic_LCA_bin.jsonlines')
+        extractor.extract_features(get_lca_types_doc, 'syntactic_LCA_type.jsonlines')
 
 
-    # #  extract LexSyn and Probability features
-    extractor.extract_features(get_lex_dep_token_context, 'lexsyn_1hop.jsonlines')
-    extractor.extract_features(get_lex_dep_token_context, 'lexsyn_2hops.jsonlines', hops=2)
+    #  extract LexSyn and Probability features
+    if args.extract_lexsyn:
+        extractor.extract_features(get_lex_dep_token_context, 'lexsyn_1hop.jsonlines')
+        extractor.extract_features(get_lex_dep_token_context, 'lexsyn_2hops.jsonlines', hops=2)
     # extractor.extract_features('probability.jsonlines')  <-- function does not work properly
+    stop = timeit.default_timer()
 
-
+    print('feature extraction took {} for {} essays'.format(stop-start, len(essay_spacy)))
 
 if __name__ == '__main__':
     main()

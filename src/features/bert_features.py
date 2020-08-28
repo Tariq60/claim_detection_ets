@@ -6,12 +6,9 @@ import os
 
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-bert_model = BertModel.from_pretrained('bert-base-cased',output_hidden_states=True)    
+bert_model = BertModel.from_pretrained('bert-base-cased',output_hidden_states=True)
 
-
-def get_individual_token_ids(sentence):
-    
-    T = 100
+def get_individual_token_ids(sentence, T=120):
     
     tokens = tokenizer.tokenize(sentence)
     tokens = ['[CLS]'] + tokens + ['[SEP]']
@@ -31,11 +28,11 @@ def get_individual_token_ids(sentence):
     return tokens, token_ids, attn_mask, seg_ids
 
 
-def get_embedding(last_1_layer, last_2_layer, last_3_layer, last_4_layer):
+def get_embedding(last_1_layer, last_2_layer, last_3_layer, last_4_layer, T=120):
 
     token_list = []
     
-    for index in range(100):
+    for index in range(T):
         token = torch.add(last_1_layer[index],last_2_layer[index])
         token = torch.add(token,last_3_layer[index])
         token = torch.add(token,last_4_layer[index])
@@ -52,7 +49,8 @@ def get_embedding(last_1_layer, last_2_layer, last_3_layer, last_4_layer):
 
     return token_list
 
-def get_embedding_from_bert(token_ids, attn_mask, seg_ids, num_layers=4):
+
+def get_embedding_from_bert(token_ids, attn_mask, seg_ids, num_layers=4, T=120):
     bert_model.eval()
 
     with torch.no_grad():
@@ -68,87 +66,125 @@ def get_embedding_from_bert(token_ids, attn_mask, seg_ids, num_layers=4):
     last_3_layer = torch.squeeze(last_4_hidden_states[2],dim=0)
     last_4_layer = torch.squeeze(last_4_hidden_states[3],dim=0)
 
-    token_list_embedding = get_embedding(last_1_layer, last_2_layer, last_3_layer, last_4_layer)
+    token_list_embedding = get_embedding(last_1_layer, last_2_layer, last_3_layer, last_4_layer, T)
     
     return token_list_embedding[:np.count_nonzero(attn_mask)]
 
 
 
-def bert_embedding_individuals(file_name, sentences, tokenizer, bert_model, T=100):
+
+def bert_embedding_individuals(output_path, sentences, tokenizer, bert_model, T=120):
     
     output_path = '/Users/talhindi/Documents/claim_detection/features/'
-    file_name = file_name
+    if not os.path.exists(os.path.join(output_path, 'features/')):
+        os.makedirs(os.path.join(output_path, 'features/'))
+
     token_embeddings = []
     
-    for i, sentence in enumerate(sentences):
-        print('processing sentence: ', i)
-        sent_tokens = sentence.split()
-        tkns, token_ids, attn_mask, seg_ids = get_individual_token_ids(sentence)
-        token_list_embedding = get_embedding_from_bert(token_ids, attn_mask, seg_ids)
-        
-        assert tkns[0] == '[CLS]'
-        
-        adjusted_token_emb, j = [], 1
-        for i in range(len(sent_tokens)):
-            
-            # print(i+1, sent_tokens[i], end =' <--> ')
-            # print(j, tkns[j], end=' ')
-            j+=1
-            
-            if sent_tokens[i] == tkns[j-1]:
-                adjusted_token_emb.append(torch.squeeze(token_list_embedding[j-1]))
-            else:
-                if sent_tokens[i] == tkns[j-1]+tkns[j]: # handling 's, 'm
-                    adjusted_token_emb.append(torch.squeeze(torch.mean(torch.stack(token_list_embedding[j-1:j+1]))) )
-                    # print(tkns[j], end=' ')
-                    j+=1
-                elif sent_tokens[i] == tkns[j-1]+tkns[j]+tkns[j+1]: # handling n't
-                    adjusted_token_emb.append(torch.squeeze(torch.mean(torch.stack(token_list_embedding[j-1:j+2]))) )
-                    # print(tkns[j], end=' ')
-                    j+=2
-                else:
-                    wordpiece, wordpiece_emb = True, [token_list_embedding[j-1]]
-                    while wordpiece:
-                        if '#' in tkns[j]:
-                            wordpiece_emb.append(token_list_embedding[j])
-                            # print(tkns[j], end=' ')
-                            j+=1
-                        else:
-                            wordpiece = False
-                            adjusted_token_emb.append( torch.squeeze(torch.mean(torch.stack(wordpiece_emb))) )
-            
-            # print(j)
+    for sent_id, sentence in enumerate(sentences):
         
         try:
+            if sent_id % 10 == 0:
+                print('processed {} sentences'.format(sent_id))
+            sent_tokens = sentence.split()
+            tkns, token_ids, attn_mask, seg_ids = get_individual_token_ids(sentence, T)
+            token_list_embedding = get_embedding_from_bert(token_ids, attn_mask, seg_ids, T=T)
+
+            assert tkns[0] == '[CLS]'
+
+            adjusted_token_emb, j = [], 1
+            for i in range(len(sent_tokens)):
+#                 print(i , j)
+
+                # print(i+1, sent_tokens[i], end =' <--> ')
+                # print(j, tkns[j], end=' ')
+                j+=1
+
+                if sent_tokens[i] == tkns[j-1]:
+                    adjusted_token_emb.append(torch.squeeze(token_list_embedding[j-1]))
+                else:
+                    two_tokens = tkns[j-1].replace('#','') + tkns[j].replace('#','')
+                    three_tokens = tkns[j-1].replace('#','') + tkns[j].replace('#','') + tkns[j+1].replace('#','')
+                    if j+2 < len(tkns):
+                        four_tokens = tkns[j-1].replace('#','') + tkns[j].replace('#','') + \
+                                      tkns[j+1].replace('#','') + tkns[j+2].replace('#','')
+                    else:
+                        four_tokens = ''
+                    
+                    if j+3 < len(tkns):
+                        five_tokens = tkns[j-1].replace('#','') + tkns[j].replace('#','') + \
+                                      tkns[j+1].replace('#','') + tkns[j+2].replace('#','') + tkns[j+3].replace('#','')
+                    else:
+                        five_tokens = ''
+
+                    if sent_tokens[i] == two_tokens: # handling 's, 'm
+                        adjusted_token_emb.append(torch.squeeze(torch.mean(torch.stack(token_list_embedding[j-1:j+1]))) )
+                        # print(tkns[j], end=' ')
+                        j+=1
+
+                    elif sent_tokens[i] == three_tokens: # handling n't
+                        adjusted_token_emb.append(torch.squeeze(torch.mean(torch.stack(token_list_embedding[j-1:j+2]))) )
+                        # print(tkns[j], end=' ')
+                        j+=2
+
+                    elif sent_tokens[i] == four_tokens: # handling U.S. <-->  U . S .
+                        adjusted_token_emb.append(torch.squeeze(torch.mean(torch.stack(token_list_embedding[j-1:j+3]))) )
+                        # print(tkns[j], end=' ')
+                        j+=3
+                        
+                    elif sent_tokens[i] == five_tokens:
+                        adjusted_token_emb.append(torch.squeeze(torch.mean(torch.stack(token_list_embedding[j-1:j+4]))) )
+                        # print(tkns[j], end=' ')
+                        j+=4
+                    else:
+
+                        # print('I have a longer list of wordpieces!')
+                        # handling longer wordpieces, if any
+                        wordpiece, wordpiece_emb = True, [token_list_embedding[j-1]]
+                        tok_seq = tkns[j-1].replace('#','')
+                        while wordpiece:
+                            if sent_tokens[i] != tok_seq and j < len(tkns):
+                                wordpiece_emb.append(token_list_embedding[j])
+                                tok_seq += tkns[j].replace('#','')
+                                j+=1
+                            else:
+                                wordpiece = False
+                                adjusted_token_emb.append( torch.squeeze(torch.mean(torch.stack(wordpiece_emb))) )
+                            
+
+                # print(j)
             assert tkns[j] == '[SEP]'
             assert len(sent_tokens) == len(adjusted_token_emb)
-        except Exception as e: 
-            np.save(os.path.join(output_path, file_name+'_'+str(i)+'.bert.npy'), token_embeddings)
-            print(e)
-            break
+        
+        except Exception:
+            print(i , j, len(sent_tokens), len(tkns), len(token_list_embedding))
+            np.save(os.path.join(output_path, +'features/embeddings_{}.bert.npy'.format(str(sent_id))), token_embeddings)
+            traceback.print_exc()
+            return token_embeddings
         
         token_embeddings.append(adjusted_token_emb)
-        
-    np.save(os.path.join(output_path, file_name+'.bert.npy'), token_embeddings)
-#     np.savetxt(os.path.join(output_path,file_name+'.txt'),msg_embeddings)
+    
+       
+    np.save(os.path.join(output_path, +'features/embeddings.bert.npy'), token_embeddings)
     
     return token_embeddings
  
+ 
 
 
-train = open('../data/SG2017_claim/train.txt','r').readlines()
+# train = open('../data/SG2017_claim/train.txt','r').readlines()
 
-sent_tokens, sentences, sent_start = [], [], 0
-for i, line in enumerate(train):
-    if line == '\n':
-        sent = ' '.join(sent_tokens)
-        sentences.append(sent)
-        sent_tokens = []
-    else:        
-        token, label = line.rstrip().split()
-        sent_tokens.append(token)
+# sent_tokens, sentences, sent_start = [], [], 0
+# for i, line in enumerate(train):
+#     if line == '\n':
+#         sent = ' '.join(sent_tokens)
+#         sentences.append(sent)
+#         sent_tokens = []
+#     else:        
+#         token, label = line.rstrip().split()
+#         sent_tokens.append(token)
 
-embeddings = bert_embedding_individuals('train_claim_emb', sentences[:10], tokenizer, bert_model)
+# embeddings = bert_embedding_individuals('train_claim_emb', sentence, tokenizer, bert_model)
 
 
 

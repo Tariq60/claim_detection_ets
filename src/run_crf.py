@@ -59,47 +59,27 @@ def get_sent_splits(essays_dir = '/Users/talhindi/Documents/claim_detection/data
 
 def main():
 
-	# print('testing on SG data')
-	# n_train, n_test = 119752, 29815
-	# sent_token_ids_train, _ = get_sent_splits()
+	# Directories
+ 	train_data_dir = '/Users/talhindi/Documents/data_wm/arg_clean_45_2/'
+	train_feature_dir = train_data_dir + 'features/'
+
+ 	test_data_dir = '/Users/talhindi/Documents/data_wm/arg_clean_45_1/'
+	test_feature_dir = test_data_dir + 'features/'
+
+	features_list = ["structural_position", "structural_position_sent", "structural_punc", "syntactic_LCA_bin", "syntactic_POS", "syntactic_LCA_type", "lexsyn_1hop"]
 
 
-	# run_crf_expriments(['structural_position', 'structural_punc', 'structural_position_sent','lexsyn_1hop'], 
-	# 	train_test_sent_splits = [sent_token_ids_train, sent_token_ids_test], n_train_test= [n_train, n_test],
-	# 	train_test_directories=['/Users/talhindi/Documents/claim_detection_wm/claim_features/train/',
-	# 							'/Users/talhindi/Documents/claim_detection_wm/claim_features/test/'])
 
+	print('training and testing on WM narrtive data')
+	n_train, n_test = 36546, 21852 # total tokens in each file
 	
-	# print('testing on WM data')
-	# n_train, n_test = 119752, 27134
-	# essays_sent_token_label, _, _, _, _ = read_wm_essays()
 
-	# # WM token id starts at 500000 in feature files as exported by extract_features_wm script
-	# token_id, sent_token_ids_test = 500000, []
-	# for essay in essays_sent_token_label:
-	# 	for sent_tokens, sent_labels in essay:
-	# 		sent_ids = []
-	# 		for token in sent_tokens:
-	# 			sent_ids.append(token_id)
-	# 			token_id += 1
-	# 		sent_token_ids_test.append(sent_ids)
-
-	# run_crf_expriments(['structural_position', 'structural_punc', 'structural_position_sent','lexsyn_1hop'], 
-	# 	train_test_sent_splits = [sent_token_ids_train, sent_token_ids_test], n_train_test= [n_train, n_test],
-	# 	train_test_directories=['/Users/talhindi/Documents/claim_detection_wm/claim_features/train/',
- 	#							'/Users/talhindi/Documents/claim_detection_wm/claim_features_wm/'])
-
-
-
-	print('testing on WM narrtive data')
-	n_train, n_test = 119752, 36546
-	# n_train, n_test = 119752, 21852
-
-	essays_sent_token_label, _, _, _, _ = read_wm_essays('/Users/talhindi/Documents/data_wm/arg_clean_45_2/*.tsv')
+	# prepraing train features in sequence formats because extract_features.py outputs token features only
+	train_essays_sent_token_label, _, _, _, _ = read_wm_essays(train_data_dir)
 
 	# WM token id starts at 500000 in feature files as exported by extract_features_wm script
-	token_id, sent_token_ids_test = 500000, []
-	for essay in essays_sent_token_label:
+	token_id, sent_token_ids_train = 500000, []
+	for essay in train_essays_sent_token_label:
 		for sent_tokens, sent_labels in essay:
 			sent_ids = []
 			for token in sent_tokens:
@@ -107,27 +87,41 @@ def main():
 				token_id += 1
 			sent_token_ids_test.append(sent_ids)
 
-	# combined feature extraction of sentences to test with bert embeddings
-	# X_test, y_test = read_features_labels(n_test,
- #                                      sent_token_ids_test,
- #                                      '/Users/talhindi/Documents/data_wm/arg_clean_45_2/features/',
- #                                      feature_files=['lexsyn_1hop'],
- #                                      suffix='.jsonlines')
-	# pickle.dump(X_test, open('wm_nr_lexsyn.p','wb'))
-	# print(sent_token_ids_test)
-	# print('****************\n')
+	X_train, y_train = read_features_labels(n_train,
+                                      sent_token_ids_train,
+                                      train_feature_dir,
+                                      feature_files=features_list,
+                                      suffix='.jsonlines')
+
+
+	# prepraing test features in sequence formats because extract_features.py outputs token features only
+	test_essays_sent_token_label, _, _, _, _ = read_wm_essays(test_data_dir)
+
+	# WM token id starts at 500000 in feature files as exported by extract_features_wm script
+	token_id, sent_token_ids_test = 500000, []
+	for essay in test_essays_sent_token_label:
+		for sent_tokens, sent_labels in essay:
+			sent_ids = []
+			for token in sent_tokens:
+				sent_ids.append(token_id)
+				token_id += 1
+			sent_token_ids_test.append(sent_ids)
 
 	X_test, y_test = read_features_labels(n_test,
                                       sent_token_ids_test,
-                                      '/Users/talhindi/Documents/data_wm/arg_clean_45_2/features/',
-                                      feature_files=["structural_position", "structural_position_sent", "structural_punc", "syntactic_LCA_bin", "syntactic_POS", "syntactic_LCA_type", "lexsyn_1hop"],
+                                      test_feature_dir,
+                                      feature_files=features_list,
                                       suffix='.jsonlines')
-	pickle.dump(X_test, open('wm2_all.p','wb'))
+	
+	# pickle.dump(X_test, open('wm2_all.p','wb'))
 
-	# run_crf_expriments(['structural_position', 'structural_punc', 'structural_position_sent','lexsyn_1hop'], 
-	# 	train_test_sent_splits = [sent_token_ids_train, sent_token_ids_test], n_train_test= [n_train, n_test],
-	# 	train_test_directories=['/Users/talhindi/Documents/claim_detection_wm/claim_features/train/',
-	# 							'/Users/talhindi/Documents/data_wm/arg_clean_45_1/features/'])
+	
+	# training crf model
+	run_crf_expriments(features_list, 
+						train_test_sent_splits = [sent_token_ids_train, sent_token_ids_test],
+						n_train_test= [n_train, n_test],
+						train_test_directories= [train_feature_dir, test_feature_dir]
+					   )
 
 
 

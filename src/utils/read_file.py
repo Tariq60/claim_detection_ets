@@ -49,10 +49,10 @@ def read_txt_and_ann(txt_dir,   # directory to the text files of the essays
     return essays_txt_prg_list, essay_txt_str, essays_segments
 
 
-def read_wm_essays(essays_dir='/Users/talhindi/Documents/data_wm/raw_data/*'):
+def read_wm_essays(essays_dir):
      # read files
     data = []
-    for file in sorted(glob.glob(essays_dir)):
+    for file in sorted(glob.glob( os.path.join(essays_dir,"*.tsv") )):
         data.append(open(file).readlines())
 
 
@@ -63,7 +63,7 @@ def read_wm_essays(essays_dir='/Users/talhindi/Documents/data_wm/raw_data/*'):
         essay_sents, sent_token, sent_label = [], [], []
         doc_tokens, doc_labels = [], []
         
-        for line in essay:
+        for line in essay[1:]:
             sent_id, token_id, token, label = line.rstrip().split()
             
             if sent_id != prev_sent_id:
