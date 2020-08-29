@@ -1,4 +1,7 @@
-
+'''
+This is a backed-up script that might not be needed.
+If needed, you can modify the paths and pass the path to the SG2017 to export the four column .tsv files as we use in the WM2020 dataset
+'''
 
 
 

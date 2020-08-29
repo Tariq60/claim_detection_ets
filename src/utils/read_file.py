@@ -63,6 +63,7 @@ def read_wm_essays(essays_dir):
         essay_sents, sent_token, sent_label = [], [], []
         doc_tokens, doc_labels = [], []
         
+        # assuming header in the first line
         for line in essay[1:]:
             sent_id, token_id, token, label = line.rstrip().split()
             
@@ -89,9 +90,6 @@ def read_wm_essays(essays_dir):
         sentences = []
         for essay_sent_tokens, essay_sent_labels in essay:
             sent = ' '.join(essay_sent_tokens)
-    #         sent = sent.replace(" ' m", "'m")
-    #         sent = sent.replace(" ' s", "'s")
-    #         sent = sent.replace(" : ", ": ")
             sentences.append(sent)
         
         essay_str_sent.append(sentences)

@@ -1,13 +1,7 @@
 ''' August 28th, 2020
     Author: Tariq Alhindi
 
-    Feature Extraction script for the writting mentor data
-
-    script expects data directory to be entered when running the script.
-    Run script as:
-
-    python extract_features_wm.py <data_dir>
-
+    Feature Extraction script for the writting mentor data (or anything in the same format)
 '''
 
 import os
@@ -125,7 +119,7 @@ def main():
     start = timeit.default_timer()
     #  extract structural features
     if args.extract_structural:
-        extractor.extract_features(get_positions, 'structural_position_test.jsonlines')
+        extractor.extract_features(get_positions, 'structural_position.jsonlines')
         extractor.extract_features(get_punc_features, 'structural_punc.jsonlines')
         extractor.extract_features(tok_sent_pos, 'structural_position_sent.jsonlines')
 

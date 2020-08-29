@@ -71,7 +71,7 @@ def read_features_labels(n_examples, sent_token_ids, directory, feature_files, s
 def run_crf_expriments(features, train_test_sent_splits, n_train_test, suffix='.jsonlines',
                    train_test_directories = ['../features/SG2017_train/', '../features/SG2017_test/'],
                    ):
-    'Takes a '
+    
 
     X_train, y_train = read_features_labels(n_train_test[0], train_test_sent_splits[0],
                                             train_test_directories[0], features, suffix)

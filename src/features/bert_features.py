@@ -5,10 +5,10 @@ import glob
 import os
 
 
-tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
-bert_model = BertModel.from_pretrained('bert-base-cased',output_hidden_states=True)
+# tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+# bert_model = BertModel.from_pretrained('bert-base-cased',output_hidden_states=True)
 
-def get_individual_token_ids(sentence, T=120):
+def get_individual_token_ids(tokenizer, sentence, T=120):
     
     tokens = tokenizer.tokenize(sentence)
     tokens = ['[CLS]'] + tokens + ['[SEP]']
@@ -50,7 +50,8 @@ def get_embedding(last_1_layer, last_2_layer, last_3_layer, last_4_layer, T=120)
     return token_list
 
 
-def get_embedding_from_bert(token_ids, attn_mask, seg_ids, num_layers=4, T=120):
+def get_embedding_from_bert(bert_model, token_ids, attn_mask, seg_ids, num_layers=4, T=120):
+    
     bert_model.eval()
 
     with torch.no_grad():
@@ -74,8 +75,7 @@ def get_embedding_from_bert(token_ids, attn_mask, seg_ids, num_layers=4, T=120):
 
 
 def bert_embedding_individuals(output_path, sentences, tokenizer, bert_model, T=120):
-    
-    output_path = '/Users/talhindi/Documents/claim_detection/features/'
+
     if not os.path.exists(os.path.join(output_path, 'features/')):
         os.makedirs(os.path.join(output_path, 'features/'))
 
@@ -84,11 +84,11 @@ def bert_embedding_individuals(output_path, sentences, tokenizer, bert_model, T=
     for sent_id, sentence in enumerate(sentences):
         
         try:
-            if sent_id % 10 == 0:
+            if sent_id > 0 and sent_id % 50 == 0:
                 print('processed {} sentences'.format(sent_id))
             sent_tokens = sentence.split()
-            tkns, token_ids, attn_mask, seg_ids = get_individual_token_ids(sentence, T)
-            token_list_embedding = get_embedding_from_bert(token_ids, attn_mask, seg_ids, T=T)
+            tkns, token_ids, attn_mask, seg_ids = get_individual_token_ids(tokenizer, sentence, T)
+            token_list_embedding = get_embedding_from_bert(bert_model, token_ids, attn_mask, seg_ids, T=T)
 
             assert tkns[0] == '[CLS]'
 
@@ -158,86 +158,15 @@ def bert_embedding_individuals(output_path, sentences, tokenizer, bert_model, T=
         
         except Exception:
             print(i , j, len(sent_tokens), len(tkns), len(token_list_embedding))
-            np.save(os.path.join(output_path, +'features/embeddings_{}.bert.npy'.format(str(sent_id))), token_embeddings)
+            np.save(os.path.join(output_path, 'features/embeddings_{}.bert.npy'.format(str(sent_id))), token_embeddings)
             traceback.print_exc()
             return token_embeddings
         
         token_embeddings.append(adjusted_token_emb)
     
        
-    np.save(os.path.join(output_path, +'features/embeddings.bert.npy'), token_embeddings)
+    np.save(os.path.join(output_path, 'features/embeddings.bert.npy'), token_embeddings)
     
     return token_embeddings
  
  
-
-
-# train = open('../data/SG2017_claim/train.txt','r').readlines()
-
-# sent_tokens, sentences, sent_start = [], [], 0
-# for i, line in enumerate(train):
-#     if line == '\n':
-#         sent = ' '.join(sent_tokens)
-#         sentences.append(sent)
-#         sent_tokens = []
-#     else:        
-#         token, label = line.rstrip().split()
-#         sent_tokens.append(token)
-
-# embeddings = bert_embedding_individuals('train_claim_emb', sentence, tokenizer, bert_model)
-
-
-
-# test = open('../data/SG2017_claim/test.txt','r').readlines()
-
-# sent_tokens, sentences = [], []
-# for line in test:
-#     if line == '\n':
-#         sent = ' '.join(sent_tokens)
-#         sentences.append(sent)
-#         sent_tokens = []
-#     else:        
-#         token, label = line.rstrip().split()
-#         sent_tokens.append(token)
-
-# embeddings = bert_embedding_individuals('test_claim_emb', sentences, tokenizer, bert_model)
-
-
-
-
-# test = open('../data/SG2017_claim/test.txt','r').readlines()
-
-# sent_tokens, sentences = [], []
-# for line in test:
-#     if line == '\n':
-#         sent = ' '.join(sent_tokens)
-#         sentences.append(sent)
-#         sent_tokens = []
-#     else:        
-#         token, label = line.rstrip().split()
-#         sent_tokens.append(token)
-
-# embeddings = bert_embedding_individuals('test_claim_emb', sentences, tokenizer, bert_model)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

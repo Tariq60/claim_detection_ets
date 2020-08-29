@@ -1,13 +1,7 @@
-''' August 1st, 2020
+''' August 28th, 2020
     Author: Tariq Alhindi
 
-    Feature Extraction script for the SG2017 dataset
-
-    script expects data directory to be entered when running the script.
-    Run script as:
-
-    python extract_features_wm.py <data_dir>
-
+    Feature Extraction script for the SG2017 dataset (or anything in the same format)
 '''
 
 import os
@@ -81,7 +75,7 @@ class FeatureExtractor:
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Feature Extraction for WM data')
+    parser = argparse.ArgumentParser(description='Feature Extraction for SG2017 data')
     parser.add_argument("--data_dir",
                         default=None,
                         type=str,

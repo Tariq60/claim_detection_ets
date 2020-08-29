@@ -1,12 +1,16 @@
-import torch
-from transformers import BertTokenizer,BertModel,BertForPreTraining,BertForQuestionAnswering
 import numpy as np
 import glob
 import os
 import timeit
 import copy
+import pickle
+import argparse
 
+from utils.read_file import read_wm_essays
 from features.bert_features import bert_embedding_individuals
+
+import torch
+from transformers import BertTokenizer,BertModel,BertForPreTraining,BertForQuestionAnswering
 
 
 def get_sent_labels(token_list):
@@ -50,57 +54,33 @@ def sent2features(sent_emb):
 
 
 def main():
-	parser = argparse.ArgumentParser(description='Feature Extraction for WM data')
+    parser = argparse.ArgumentParser(description='Feature Extraction for WM data')
     parser.add_argument("--data_dir",
                         default=None,
                         type=str,
                         required=True,
                         help="The input data dir. Should contain the four column .tsv files with header 'sentence_id    token_id    token   label' in the first line.")
-   parser.add_argument("--bert_model",
+    parser.add_argument("--bert_model",
                         default='bert-base-cased',
                         type=str,
-                        required=True,
                         help="bert model to be used for embeddings extraction")
-	args = parser.parse_args()
+    args = parser.parse_args()
 
-	tokenizer = BertTokenizer.from_pretrained(args.bert_model)
-	bert_model = BertModel.from_pretrained(args.bert_model, output_hidden_states=True)
+    tokenizer = BertTokenizer.from_pretrained(args.bert_model)
+    bert_model = BertModel.from_pretrained(args.bert_model, output_hidden_states=True)
 
-	_, _, _, essay_str_sent = read_wm_essays(args.data_dir)
+    _, _, _, _, essay_str_sent = read_wm_essays(args.data_dir)
+    sentences = [sent for essay_sent in essay_str_sent for sent in essay_sent]
+    print('number of sentences',len(sentences))
 
-	# wm = open('../../data_wm/arg_clean_45_1/test.txt','r').readlines()
+    print('embeddings will be exported to: ', os.path.join(args.data_dir, 'features/'))
+    embeddings = bert_embedding_individuals(os.path.join(args.data_dir), sentences, tokenizer, bert_model)
 
-	# sent_tokens, sentences = [], []
-	# for line in wm:
-	#     if line == '\n':
-	#         sent = ' '.join(sent_tokens)
-	#         sentences.append(sent)
-	#         sent_tokens = []
-	#     else:
-	#         token, label = line.rstrip().split()
-	#         if len(token) < 25 and 'www' not in token:
-	#             sent_tokens.append(token)
+    print('\nembeddings extraction done, now creating sequences of feature dicts to be used in the CRF model.')
+    features = [sent2features(sent) for sent in embeddings]
+    pickle.dump(features, open(os.path.join(os.path.join(args.data_dir, 'features/'), 'embeddings.p'), 'wb'))
 
-	sentences = [sent for essay_sent in essay_str_sent for sent in essay_sent]
-
-	print('number of sentences',len(sentences))
-
-	print('Embeddings will be exported to: ', os.path.join(args.data_dir, 'features/'))
-	start = timeit.default_timer()
-	embeddings = bert_embedding_individuals(os.path.join(args.data_dir, 'embeddings'), sentences, tokenizer, bert_model)
-	stop = timeit.default_timer()
-	print('extracting bert embeddings time: ', stop-start)
-
-
-	start = timeit.default_timer()
-	test_emb = np.load('/Users/talhindi/Documents/claim_detection/features/tmp.bert.npy', allow_pickle=True)
-	stop = timeit.default_timer()
-	print('loading pickle time: ', stop-start)
-
-	start = timeit.default_timer()
-	test_features = [sent2features(sent) for sent in embeddings]
-	stop = timeit.default_timer()
-	print('sent embeddings dict time: ', stop-start)
+    print('Done, exported two files: \nembeddings.p (dictionary-based version, much bigger in size, but needed by the CRF model) \nembeddings.bert.npy (feature vectors only)')
 
 
 if __name__ == '__main__':
