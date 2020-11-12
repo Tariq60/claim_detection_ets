@@ -33,7 +33,9 @@ def read_features_labels(n_examples, sent_token_ids, directory, feature_files, s
     sent_id, token_id = 0, 0
     sent, sent_labels = [], []
     for i in range(n_examples):
-        
+        if len(sent_token_ids[sent_id]) == 0:
+            continue
+            
         token_features = {}
         for fset in feature_sets:
             jsonline = json.loads(fset[i])
@@ -43,6 +45,7 @@ def read_features_labels(n_examples, sent_token_ids, directory, feature_files, s
                 else:
                     token_features[key] = jsonline['x'][key]
         
+        # print(len(sent_token_ids[sent_id]))
         # print(sent_id, token_id, sent_token_ids[sent_id][token_id], jsonline['id'])
         assert sent_token_ids[sent_id][token_id] == jsonline['id']
         
@@ -51,7 +54,7 @@ def read_features_labels(n_examples, sent_token_ids, directory, feature_files, s
         del token_features
         
         if token_id == len(sent_token_ids[sent_id])-1:
-            # print(jsonline['id'], len(sent), len(sent_labels), len(sent_token_ids[sent_id]))
+            # print('NEXT SENT',jsonline['id'], len(sent), len(sent_labels), len(sent_token_ids[sent_id]))
             assert len(sent) == len(sent_labels) == len(sent_token_ids[sent_id])
             
             features.append(sent)

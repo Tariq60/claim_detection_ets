@@ -30,7 +30,7 @@ class FeatureExtractorWM:
 
 
     def __init__(self, essay_spacy, tokens, labels, feature_dir,
-                starting_token_id = 500000,
+                starting_token_id = 0,
                 label_dict={'O-claim': 0.0, 'B-claim': 1.0, 'I-claim': 2.0}
                 ):
 
@@ -49,6 +49,7 @@ class FeatureExtractorWM:
         token_id = self.starting_token_id
         for i, (doc, doc_tokens, doc_labels) in enumerate(zip(self.essay_spacy, self.tokens, self.labels)):
             
+            # print(repr(doc.text))
             # some feature functions require the tokenized document and some extra parameters, such as lex_syn and probability feature functions
             if feature_function is get_lex_dep_token_context:
                 features = feature_function(doc, hops)
@@ -60,12 +61,14 @@ class FeatureExtractorWM:
             else: # otherwise we just pass the tokenized document
                 features = feature_function(doc)
 
-            # print(len(features), len(doc), len(doc_tokens), len(doc_labels))
-            assert len(features) == len(doc) == len(doc_tokens) == len(doc_labels)
+            print(i, len(features), len(doc), len(doc_tokens), len(doc_labels))
+            # assert len(features) == len(doc) == len(doc_tokens) == len(doc_labels)
 
             with open(os.path.join(self.feature_dir, feature_file), 'a') as file:
                 for f, l, spacy_token, token in zip(features, doc_labels, doc, doc_tokens):
-                    assert token == spacy_token.string.strip()
+                    if token != spacy_token.string.strip():
+                        print(token, spacy_token.string.strip())
+                    # assert token == spacy_token.string.strip()
                     file.write('{{"y": {}, "x": {}, "id": {}}}\n'.format(self.label_dict[l], json.dumps(f), token_id))
                     token_id +=1
                     # print(token, token_id)
@@ -91,9 +94,19 @@ def main():
                         default=True,
                         action='store_true',
                         help="Extracting lexico-syntactic featutres when set to True.")
+    parser.add_argument("--start_token_id",
+                        default=0,
+                        type=int,
+                        help="starting token index id in the exported feature files.")
 
     args = parser.parse_args()
     essays_sent_token_label, tokens, labels, essay_str, essay_str_sent = read_wm_essays(args.data_dir)
+    label_set = set([item for _list in labels for item in _list])
+    label_dict, v = {}, 0.0
+    for k in sorted(label_set):
+        label_dict[k] = v
+        v += 1
+    print('labels are:', label_dict)
 
     print('now tokenizing essays using spacy...')
     # tokenization using spacy
@@ -102,7 +115,7 @@ def main():
     start = timeit.default_timer()
     essay_spacy = []
     for essay in essay_str:
-        essay_spacy.append(nlp(essay))
+        essay_spacy.append(nlp(essay.strip()))
     stop = timeit.default_timer()
 
     print('tokenization took {} for {} essays'.format(stop-start, len(essay_spacy)))
@@ -114,7 +127,7 @@ def main():
     print('Features will be exported to: ',os.path.join(args.data_dir, 'features/'))
 
     # instantiating an object of the FeatureExtractorWM class and passing the datasets
-    extractor = FeatureExtractorWM(essay_spacy, tokens, labels, os.path.join(args.data_dir, 'features/'))
+    extractor = FeatureExtractorWM(essay_spacy, tokens, labels, os.path.join(args.data_dir, 'features/'), args.start_token_id, label_dict)
 
     start = timeit.default_timer()
     #  extract structural features

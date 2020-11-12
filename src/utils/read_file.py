@@ -52,7 +52,8 @@ def read_txt_and_ann(txt_dir,   # directory to the text files of the essays
 def read_wm_essays(essays_dir):
      # read files
     data = []
-    for file in sorted(glob.glob( os.path.join(essays_dir,"*.tsv") )):
+    for i, file in enumerate(sorted(glob.glob( os.path.join(essays_dir,"*.tsv") ))):
+        print(i, file)
         data.append(open(file).readlines())
 
 
@@ -73,9 +74,11 @@ def read_wm_essays(essays_dir):
                 
             if len(token) < 25 and 'www' not in token:
                 doc_tokens.append(token)
-                doc_labels.append('{}-claim'.format(label.split('-')[0]))
+                # doc_labels.append('{}-claim'.format(label.split('-')[0]))
+                doc_labels.append(label)
                 sent_token.append(token)
-                sent_label.append('{}-claim'.format(label.split('-')[0]))
+                # sent_label.append('{}-claim'.format(label.split('-')[0]))
+                sent_label.append(label)
             
             prev_sent_id = sent_id
         

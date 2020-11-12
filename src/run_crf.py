@@ -104,9 +104,19 @@ def main():
 
 	# features
 	parser.add_argument("--features_list",
-						default=[["structural_position", "structural_position_sent", "structural_punc"], ["syntactic_LCA_bin", "syntactic_POS", "syntactic_LCA_type"], ["lexsyn_1hop"]],
+						default=[["structural_position", "structural_position_sent", "structural_punc"], ["syntactic_LCA_bin", "syntactic_POS", "syntactic_LCA_type"], ["lexsyn_1hop"],
+						["structural_position", "structural_position_sent", "structural_punc", "syntactic_LCA_bin", "syntactic_POS", "syntactic_LCA_type", "lexsyn_1hop"]],
 						type=list,
 						help="List of list of features, each inner list is for a single expirement")
+
+	parser.add_argument("--train_start_token_id",
+                        default=0,
+                        type=int,
+                        help="starting token index id in the exported feature files in the training data.")
+	parser.add_argument("--test_start_token_id",
+                        default=80000,
+                        type=int,
+                        help="starting token index id in the exported feature files in the test data.")
 
 	args = parser.parse_args()
 
@@ -122,7 +132,7 @@ def main():
 		train_essays_sent_token_label, _, _, _, _ = read_wm_essays(args.train_data_dir)
 
 		# WM token id starts at 500000 in feature files as exported by extract_features_wm script
-		token_id_train, sent_token_ids_train = 500000, []
+		token_id_train, sent_token_ids_train = args.train_start_token_id, []
 		for essay in train_essays_sent_token_label:
 			for sent_tokens, sent_labels in essay:
 				sent_ids = []
@@ -132,6 +142,7 @@ def main():
 				sent_token_ids_train.append(sent_ids)
 
 		n_train = sum([len(sent) for sent in sent_token_ids_train]) # total tokens in the training data
+	# pickle.dump(sent_token_ids_train, open('sent_token_ids_train.p','wb'))
 
 
 	if args.test_is_sg:
@@ -142,7 +153,7 @@ def main():
 		test_essays_sent_token_label, _, _, _, _ = read_wm_essays(args.test_data_dir)
 
 		# WM token id starts at 500000 in feature files as exported by extract_features_wm script
-		token_id_test, sent_token_ids_test = 500000, []
+		token_id_test, sent_token_ids_test = args.test_start_token_id, []
 		for essay in test_essays_sent_token_label:
 			for sent_tokens, sent_labels in essay:
 				sent_ids = []

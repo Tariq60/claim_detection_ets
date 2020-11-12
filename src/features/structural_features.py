@@ -11,7 +11,7 @@ def get_positions(essay):
     
     positions = []
     doc_pos = 0; prg_id = 0; prg_pos = 0
-    for sent_id, sent in enumerate(essay.sents):        
+    for sent_id, sent in enumerate(essay.sents):
         sent_pos = 0
         if len(sent)> 1:
             last_word_index = [i for i, token in enumerate(sent) if not token.is_punct and not token.is_space][-1]
